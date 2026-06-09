@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Speech Recognition Debug</title>
-
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,23 +13,12 @@
     <h1>🎤 Speech Recognition Debug</h1>
 
     <button id="startBtn">
-        Start Debug Session
+        Start Recognition
     </button>
 
     <br><br>
 
-    <label>
-        <input
-            type="checkbox"
-            id="enableVolumeMonitor"
-            checked
-        >
-        Enable Volume Monitor
-    </label>
-
-    <hr>
-
-    <div class="debug-panel">
+    <div class="status">
 
         <div><b>Browser:</b></div>
         <div id="browserInfo"></div>
@@ -42,18 +30,18 @@
 
         <br>
 
-        <div><b>Language:</b></div>
-        <div id="languageInfo"></div>
+        <div><b>Browser Language:</b></div>
+        <div id="browserLanguage"></div>
 
         <br>
 
-        <div><b>SpeechRecognition:</b></div>
+        <div><b>Recognition Language:</b></div>
+        <div id="recognitionLanguage"></div>
+
+        <br>
+
+        <div><b>SpeechRecognition Support:</b></div>
         <div id="speechSupport"></div>
-
-        <br>
-
-        <div><b>Microphone:</b></div>
-        <div id="micStatus">Not Started</div>
 
         <br>
 
@@ -77,8 +65,8 @@
 
         <br>
 
-        <div><b>Volume:</b></div>
-        <div id="volumeValue">0</div>
+        <div><b>Last Error:</b></div>
+        <div id="lastError">None</div>
 
         <br>
 
@@ -87,24 +75,29 @@
 
         <br>
 
-        <div><b>Last Error:</b></div>
-        <div id="lastError">None</div>
+        <div><b>Last Transcript:</b></div>
+        <div id="transcriptBox">Waiting...</div>
 
         <br>
 
-        <div><b>Transcript:</b></div>
-        <div id="transcriptBox"></div>
+        <div><b>Microphone Devices:</b></div>
+        <pre id="devicesInfo">Waiting...</pre>
 
         <br>
 
-        <div><b>Raw Results:</b></div>
-        <pre id="rawResults"></pre>
+        <div><b>Track Settings:</b></div>
+        <pre id="trackInfo">Waiting...</pre>
+
+        <br>
+
+        <div><b>Raw Recognition Results:</b></div>
+        <pre id="rawResults">Waiting...</pre>
 
     </div>
 
     <hr>
 
-    <h3>Event Log</h3>
+    <h3>Live Event Log</h3>
 
     <div
         id="logPanel"
@@ -112,9 +105,10 @@
             height:250px;
             overflow:auto;
             border:1px solid #ccc;
-            padding:5px;
-            text-align:left;
+            padding:10px;
             font-size:12px;
+            text-align:left;
+            background:#fafafa;
         "
     ></div>
 
@@ -125,16 +119,11 @@
 const startBtn =
     document.getElementById("startBtn");
 
-let restartCounter = 0;
+let restartCount = 0;
 
 function log(message){
 
     console.log(message);
-
-    const panel =
-        document.getElementById(
-            "logPanel"
-        );
 
     const row =
         document.createElement("div");
@@ -144,16 +133,88 @@ function log(message){
         + " | "
         + message;
 
-    panel.prepend(row);
+    document
+        .getElementById("logPanel")
+        .prepend(row);
 }
 
 function setValue(id,value){
 
-    document.getElementById(id)
+    document
+        .getElementById(id)
         .textContent = value;
 }
 
-function initializeDiagnostics(){
+async function showDevices(){
+
+    try{
+
+        const stream =
+            await navigator.mediaDevices
+                .getUserMedia({
+                    audio:true
+                });
+
+        const devices =
+            await navigator.mediaDevices
+                .enumerateDevices();
+
+        const simplified =
+            devices.map(device => ({
+                kind: device.kind,
+                label: device.label,
+                deviceId: device.deviceId
+            }));
+
+        document
+            .getElementById("devicesInfo")
+            .textContent =
+            JSON.stringify(
+                simplified,
+                null,
+                2
+            );
+
+        const tracks =
+            stream.getAudioTracks();
+
+        document
+            .getElementById("trackInfo")
+            .textContent =
+            JSON.stringify(
+                {
+                    trackCount:
+                        tracks.length,
+                    settings:
+                        tracks[0]?.getSettings(),
+                    constraints:
+                        tracks[0]?.getConstraints()
+                },
+                null,
+                2
+            );
+
+        log(
+            "Microphone permission granted"
+        );
+
+        // Immediately release stream.
+        // We do NOT want WebAudio competing with SpeechRecognition.
+        stream.getTracks()
+            .forEach(track =>
+                track.stop()
+            );
+
+    }catch(err){
+
+        log(
+            "Device inspection failed: "
+            + err.message
+        );
+    }
+}
+
+function initialize(){
 
     setValue(
         "browserInfo",
@@ -166,7 +227,7 @@ function initializeDiagnostics(){
     );
 
     setValue(
-        "languageInfo",
+        "browserLanguage",
         navigator.language
     );
 
@@ -182,82 +243,8 @@ function initializeDiagnostics(){
     );
 
     log(
-        "Diagnostics initialized"
+        "Page initialized"
     );
-}
-
-async function setupVolumeMonitor(){
-
-    const stream =
-        await navigator.mediaDevices
-            .getUserMedia({
-                audio:true
-            });
-
-    setValue(
-        "micStatus",
-        "GRANTED"
-    );
-
-    const context =
-        new (
-            window.AudioContext ||
-            window.webkitAudioContext
-        )();
-
-    const source =
-        context.createMediaStreamSource(
-            stream
-        );
-
-    const analyser =
-        context.createAnalyser();
-
-    analyser.fftSize = 2048;
-
-    source.connect(analyser);
-
-    const data =
-        new Uint8Array(
-            analyser.fftSize
-        );
-
-    function monitor(){
-
-        analyser.getByteTimeDomainData(
-            data
-        );
-
-        let sum = 0;
-
-        for(
-            let i=0;
-            i<data.length;
-            i++
-        ){
-
-            const sample =
-                (data[i]-128)/128;
-
-            sum += sample*sample;
-        }
-
-        const rms =
-            Math.sqrt(
-                sum/data.length
-            );
-
-        setValue(
-            "volumeValue",
-            rms.toFixed(4)
-        );
-
-        requestAnimationFrame(
-            monitor
-        );
-    }
-
-    monitor();
 }
 
 function startRecognition(){
@@ -269,7 +256,7 @@ function startRecognition(){
     if(!SpeechRecognition){
 
         alert(
-            "SpeechRecognition unsupported"
+            "SpeechRecognition not supported"
         );
 
         return;
@@ -278,19 +265,18 @@ function startRecognition(){
     const recognition =
         new SpeechRecognition();
 
-    recognition.lang =
-        navigator.language;
+    recognition.lang = "en-US";
+
+    setValue(
+        "recognitionLanguage",
+        "en-US"
+    );
 
     recognition.continuous = false;
 
     recognition.interimResults = true;
 
     recognition.maxAlternatives = 10;
-
-    log(
-        "Language: "
-        + recognition.lang
-    );
 
     recognition.onstart = () => {
 
@@ -378,33 +364,33 @@ function startRecognition(){
 
     recognition.onnomatch = () => {
 
-        log(
-            "NO MATCH"
-        );
-
         setValue(
             "lastError",
             "NO MATCH"
+        );
+
+        log(
+            "No match"
         );
     };
 
     recognition.onerror = (event) => {
 
-        log(
-            "ERROR: "
-            + event.error
-        );
-
         setValue(
             "lastError",
             event.error
+        );
+
+        log(
+            "Error: "
+            + event.error
         );
     };
 
     recognition.onresult = (event) => {
 
         log(
-            "RESULT RECEIVED"
+            "Recognition result received"
         );
 
         let transcript = "";
@@ -426,8 +412,7 @@ function startRecognition(){
             transcript
         );
 
-        const simplified =
-            [];
+        const simplified = [];
 
         for(
             let i=0;
@@ -448,9 +433,9 @@ function startRecognition(){
             });
         }
 
-        document.getElementById(
-            "rawResults"
-        ).textContent =
+        document
+            .getElementById("rawResults")
+            .textContent =
             JSON.stringify(
                 simplified,
                 null,
@@ -460,11 +445,11 @@ function startRecognition(){
 
     recognition.onend = () => {
 
-        restartCounter++;
+        restartCount++;
 
         setValue(
             "restartCount",
-            restartCounter
+            restartCount
         );
 
         setValue(
@@ -500,30 +485,15 @@ startBtn.addEventListener(
     "click",
     async () => {
 
-        try{
+        startBtn.disabled = true;
 
-            if(
-                document.getElementById(
-                    "enableVolumeMonitor"
-                ).checked
-            ){
+        await showDevices();
 
-                await setupVolumeMonitor();
-            }
-
-            startRecognition();
-
-        }catch(err){
-
-            log(
-                "START ERROR: "
-                + err.message
-            );
-        }
+        startRecognition();
     }
 );
 
-initializeDiagnostics();
+initialize();
 
 </script>
 

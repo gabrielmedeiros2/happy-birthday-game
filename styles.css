@@ -86,3 +86,76 @@ button {
     word-break: break-word;
     font-size: 0.9rem;
 }
+
+#boostIndicator {
+
+    opacity: 0;
+
+    font-weight: bold;
+
+    color: #ff4081;
+
+    margin-top: 10px;
+
+    transition: opacity .5s;
+
+    transform-origin: center;
+}
+
+#boostTimer {
+
+    font-weight: bold;
+
+    color: #ff4081;
+
+    margin-bottom: 10px;
+}
+
+#volumeDebug {
+
+    margin-top: 10px;
+
+    font-size: 0.8rem;
+
+    color: #666;
+}
+
+.boost-active {
+
+    animation:
+        pulseBoost 1s infinite ease-in-out,
+        rotateBoost 2s infinite ease-in-out;
+}
+
+@keyframes pulseBoost {
+
+    0% {
+        transform:
+            scale(1);
+    }
+
+    50% {
+        transform:
+            scale(1.25);
+    }
+
+    100% {
+        transform:
+            scale(1);
+    }
+}
+
+@keyframes rotateBoost {
+
+    0% {
+        rotate: -5deg;
+    }
+
+    50% {
+        rotate: 5deg;
+    }
+
+    100% {
+        rotate: -5deg;
+    }
+}

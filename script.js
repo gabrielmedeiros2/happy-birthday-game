@@ -1,3 +1,4 @@
+alert("script loaded");
 const meterFill = document.getElementById("meter-fill");
 const percentageText = document.getElementById("percentage");
 const lastPhrase = document.getElementById("lastPhrase");

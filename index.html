@@ -3,425 +3,529 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Birthday Meter</title>
+    <title>Speech Recognition Debug</title>
+
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <div class="container">
-        <h1>🎂 Happy Birthday! 🎉</h1>
+<div class="container">
 
-        <div class="meter-container">
-            <div id="meter-fill"></div>
-        </div>
+    <h1>🎤 Speech Recognition Debug</h1>
 
-        <div class="percentage" id="percentage">0%</div>
+    <button id="startBtn">
+        Start Debug Session
+    </button>
 
-        <button id="startBtn">🎤 Start Listening</button>
+    <br><br>
 
-        <div class="status">
-            <p><strong>Last phrase:</strong></p>
-            <p id="lastPhrase">Waiting...</p>
-        </div>
+    <label>
+        <input
+            type="checkbox"
+            id="enableVolumeMonitor"
+            checked
+        >
+        Enable Volume Monitor
+    </label>
 
-	<div id="volumeDebug">
-    	    Volume: 0
-	</div>
+    <hr>
 
-    <div style="margin-top:10px;font-size:12px;text-align:left;">
-        <div><b>Recognition Status:</b> <span id="recognitionStatus">Idle</span></div>
-        <div><b>Speech Detected:</b> <span id="speechDetected">No</span></div>
-        <div><b>Audio Detected:</b> <span id="audioDetected">No</span></div>
-        <div><b>Last Error:</b> <span id="lastError">None</span></div>
-        <div><b>Raw Transcript:</b></div>
-        <div id="rawTranscript" style="word-break:break-word;"></div>
+    <div class="debug-panel">
+
+        <div><b>Browser:</b></div>
+        <div id="browserInfo"></div>
+
+        <br>
+
+        <div><b>Protocol:</b></div>
+        <div id="protocolInfo"></div>
+
+        <br>
+
+        <div><b>Language:</b></div>
+        <div id="languageInfo"></div>
+
+        <br>
+
+        <div><b>SpeechRecognition:</b></div>
+        <div id="speechSupport"></div>
+
+        <br>
+
+        <div><b>Microphone:</b></div>
+        <div id="micStatus">Not Started</div>
+
+        <br>
+
+        <div><b>Recognition Status:</b></div>
+        <div id="recognitionStatus">Idle</div>
+
+        <br>
+
+        <div><b>Audio Event:</b></div>
+        <div id="audioEvent">None</div>
+
+        <br>
+
+        <div><b>Sound Event:</b></div>
+        <div id="soundEvent">None</div>
+
+        <br>
+
+        <div><b>Speech Event:</b></div>
+        <div id="speechEvent">None</div>
+
+        <br>
+
+        <div><b>Volume:</b></div>
+        <div id="volumeValue">0</div>
+
+        <br>
+
+        <div><b>Restart Count:</b></div>
+        <div id="restartCount">0</div>
+
+        <br>
+
+        <div><b>Last Error:</b></div>
+        <div id="lastError">None</div>
+
+        <br>
+
+        <div><b>Transcript:</b></div>
+        <div id="transcriptBox"></div>
+
+        <br>
+
+        <div><b>Raw Results:</b></div>
+        <pre id="rawResults"></pre>
+
     </div>
 
-    </div>
+    <hr>
 
-    <script>
-        const meterFill = document.getElementById("meter-fill");
-        const percentageText = document.getElementById("percentage");
-        const lastPhrase = document.getElementById("lastPhrase");
-        const startBtn = document.getElementById("startBtn");
+    <h3>Event Log</h3>
 
-        let meterValue = 0;
-        let currentVolume = 0;
+    <div
+        id="logPanel"
+        style="
+            height:250px;
+            overflow:auto;
+            border:1px solid #ccc;
+            padding:5px;
+            text-align:left;
+            font-size:12px;
+        "
+    ></div>
 
-        // =========================
-        // Meter
-        // =========================
+</div>
 
-        function updateMeter(amount) {
+<script>
 
-            meterValue += amount;
+const startBtn =
+    document.getElementById("startBtn");
 
-            if (meterValue > 100) {
-                meterValue = 100;
-            }
+let restartCounter = 0;
 
-            meterFill.style.height = meterValue + "%";
-            percentageText.innerText = meterValue.toFixed(0) + "%";
+function log(message){
+
+    console.log(message);
+
+    const panel =
+        document.getElementById(
+            "logPanel"
+        );
+
+    const row =
+        document.createElement("div");
+
+    row.textContent =
+        new Date().toLocaleTimeString()
+        + " | "
+        + message;
+
+    panel.prepend(row);
+}
+
+function setValue(id,value){
+
+    document.getElementById(id)
+        .textContent = value;
+}
+
+function initializeDiagnostics(){
+
+    setValue(
+        "browserInfo",
+        navigator.userAgent
+    );
+
+    setValue(
+        "protocolInfo",
+        location.protocol
+    );
+
+    setValue(
+        "languageInfo",
+        navigator.language
+    );
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    setValue(
+        "speechSupport",
+        SpeechRecognition
+            ? "SUPPORTED"
+            : "NOT SUPPORTED"
+    );
+
+    log(
+        "Diagnostics initialized"
+    );
+}
+
+async function setupVolumeMonitor(){
+
+    const stream =
+        await navigator.mediaDevices
+            .getUserMedia({
+                audio:true
+            });
+
+    setValue(
+        "micStatus",
+        "GRANTED"
+    );
+
+    const context =
+        new (
+            window.AudioContext ||
+            window.webkitAudioContext
+        )();
+
+    const source =
+        context.createMediaStreamSource(
+            stream
+        );
+
+    const analyser =
+        context.createAnalyser();
+
+    analyser.fftSize = 2048;
+
+    source.connect(analyser);
+
+    const data =
+        new Uint8Array(
+            analyser.fftSize
+        );
+
+    function monitor(){
+
+        analyser.getByteTimeDomainData(
+            data
+        );
+
+        let sum = 0;
+
+        for(
+            let i=0;
+            i<data.length;
+            i++
+        ){
+
+            const sample =
+                (data[i]-128)/128;
+
+            sum += sample*sample;
         }
 
-        // =========================
-        // Volume → Score Conversion
-        // =========================
-
-        function calculateGain(basePoints) {
-
-            // Ignore background noise
-            const noiseFloor = 0.03;
-
-            let volume = Math.max(
-                0,
-                currentVolume - noiseFloor
+        const rms =
+            Math.sqrt(
+                sum/data.length
             );
 
-            /*
-            * Exponential growth:
-            * whisper ≈ 1x
-            * normal ≈ 3-5x
-            * loud ≈ 10-20x
-            * shouting ≈ 25-50x
-            */
-            let multiplier =
-                1 + Math.pow(volume * 10, 2);
-
-            return basePoints * multiplier;
-        }
-
-        // =========================
-        // Microphone Volume Detection
-        // =========================
-
-        async function setupMicrophoneLevelDetection() {
-
-            const stream =
-                await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        noiseSuppression: true,
-                        echoCancellation: true,
-                        autoGainControl: true
-                    }
-                });
-
-            const audioContext =
-                new (window.AudioContext ||
-                window.webkitAudioContext)();
-
-            const source =
-                audioContext.createMediaStreamSource(stream);
-
-            const analyser =
-                audioContext.createAnalyser();
-
-            analyser.fftSize = 2048;
-
-            source.connect(analyser);
-
-            const dataArray =
-                new Uint8Array(analyser.fftSize);
-
-            function monitorVolume() {
-
-                analyser.getByteTimeDomainData(
-                    dataArray
-                );
-
-                let sumSquares = 0;
-
-                for (
-                    let i = 0;
-                    i < dataArray.length;
-                    i++
-                ) {
-
-                    const normalized =
-                        (dataArray[i] - 128) / 128;
-
-                    sumSquares +=
-                        normalized * normalized;
-                }
-
-                const rms =
-                    Math.sqrt(
-                        sumSquares / dataArray.length
-                    );
-
-                currentVolume = rms;
-
-                // Debug volume
-                console.log(
-                    "Volume:",
-                    currentVolume.toFixed(3)
-                );
-
-                requestAnimationFrame(
-                    monitorVolume
-                );
-            }
-
-            monitorVolume();
-        }
-
-        // =========================
-        // Speech Recognition
-        // =========================
-
-        function startSpeechRecognition() {
-
-            const SpeechRecognition =
-                window.SpeechRecognition ||
-                window.webkitSpeechRecognition;
-
-            if (!SpeechRecognition) {
-
-                alert(
-                    "Speech Recognition is not supported."
-                );
-
-                return;
-            }
-
-            const recognition =
-                new SpeechRecognition();
-
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            recognition.lang = "en-US";
-            recognition.maxAlternatives = 10;
-
-            const recognitionStatus =
-                document.getElementById(
-                    "recognitionStatus"
-                );
-
-            const speechDetected =
-                document.getElementById(
-                    "speechDetected"
-                );
-
-            const audioDetected =
-                document.getElementById(
-                    "audioDetected"
-                );
-
-            const lastError =
-                document.getElementById(
-                    "lastError"
-                );
-
-            const rawTranscript =
-                document.getElementById(
-                    "rawTranscript"
-                );
-
-            recognition.onstart = () => {
-
-                recognitionStatus.innerText =
-                    "Started";
-
-                console.log(
-                    "Recognition started"
-                );
-            };
-
-            recognition.onaudiostart = () => {
-
-                audioDetected.innerText =
-                    "YES";
-
-                console.log(
-                    "Audio detected"
-                );
-            };
-
-            recognition.onaudioend = () => {
-
-                audioDetected.innerText =
-                    "NO";
-
-                console.log(
-                    "Audio ended"
-                );
-            };
-
-            recognition.onspeechstart = () => {
-
-                speechDetected.innerText =
-                    "YES";
-
-                console.log(
-                    "Speech detected"
-                );
-            };
-
-            recognition.onspeechend = () => {
-
-                speechDetected.innerText =
-                    "NO";
-
-                console.log(
-                    "Speech ended"
-                );
-            };
-
-            recognition.onresult = (event) => {
-
-                let transcript = "";
-
-                for (
-                    let i = event.resultIndex;
-                    i < event.results.length;
-                    i++
-                ) {
-
-                    transcript +=
-                        event.results[i][0].transcript +
-                        " ";
-                }
-
-                transcript =
-                    transcript
-                        .toLowerCase()
-                        .trim();
-
-                rawTranscript.innerText =
-                    transcript;
-
-                lastPhrase.innerText =
-                    transcript;
-
-                console.log(
-                    "Transcript:",
-                    transcript
-                );
-
-                const normalized =
-                    transcript
-                        .replace(/[^\w\s]/g, "")
-                        .replace(/\s+/g, " ")
-                        .trim();
-
-                // No confidence filtering
-                // Android frequently returns 0
-
-                if (
-                    normalized.includes(
-                        "happy birthday"
-                    )
-                ) {
-
-                    const gain =
-                        calculateGain(1);
-
-                    console.log(
-                        "Happy Birthday:",
-                        gain
-                    );
-
-                    updateMeter(gain);
-                }
-
-                if (
-                    normalized.includes(
-                        "i love you"
-                    )
-                ) {
-
-                    const gain =
-                        calculateGain(2);
-
-                    console.log(
-                        "I Love You:",
-                        gain
-                    );
-
-                    updateMeter(gain);
-                }
-            };
-
-            recognition.onerror = (event) => {
-
-                lastError.innerText =
-                    event.error;
-
-                console.error(
-                    "Recognition error:",
-                    event.error
-                );
-            };
-
-            recognition.onnomatch = () => {
-
-                console.log(
-                    "No speech match"
-                );
-
-                lastError.innerText =
-                    "No match";
-            };
-
-            recognition.onend = () => {
-
-                recognitionStatus.innerText =
-                    "Restarting";
-
-                console.log(
-                    "Recognition ended"
-                );
-
-                setTimeout(() => {
-
-                    try {
-
-                        recognition.start();
-
-                    } catch (e) {
-
-                        console.error(e);
-                    }
-
-                }, 300);
-            };
-
-            recognition.start();
-        }
-
-        // =========================
-        // Start Button
-        // =========================
-
-        startBtn.addEventListener(
-            "click",
-            async () => {
-
-                try {
-
-                    startBtn.disabled = true;
-                    startBtn.innerText =
-                        "🎤 Listening...";
-
-                    await setupMicrophoneLevelDetection();
-
-                    startSpeechRecognition();
-
-                }
-                catch (err) {
-
-                    console.error(err);
-
-                    alert(
-                        "Could not access microphone."
-                    );
-
-                    startBtn.disabled = false;
-                    startBtn.innerText =
-                        "🎤 Start Listening";
-                }
-            }
+        setValue(
+            "volumeValue",
+            rms.toFixed(4)
         );
-    </script>
+
+        requestAnimationFrame(
+            monitor
+        );
+    }
+
+    monitor();
+}
+
+function startRecognition(){
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    if(!SpeechRecognition){
+
+        alert(
+            "SpeechRecognition unsupported"
+        );
+
+        return;
+    }
+
+    const recognition =
+        new SpeechRecognition();
+
+    recognition.lang =
+        navigator.language;
+
+    recognition.continuous = false;
+
+    recognition.interimResults = true;
+
+    recognition.maxAlternatives = 10;
+
+    log(
+        "Language: "
+        + recognition.lang
+    );
+
+    recognition.onstart = () => {
+
+        setValue(
+            "recognitionStatus",
+            "STARTED"
+        );
+
+        log(
+            "Recognition started"
+        );
+    };
+
+    recognition.onaudiostart = () => {
+
+        setValue(
+            "audioEvent",
+            "AUDIO START"
+        );
+
+        log(
+            "Audio start"
+        );
+    };
+
+    recognition.onaudioend = () => {
+
+        setValue(
+            "audioEvent",
+            "AUDIO END"
+        );
+
+        log(
+            "Audio end"
+        );
+    };
+
+    recognition.onsoundstart = () => {
+
+        setValue(
+            "soundEvent",
+            "SOUND START"
+        );
+
+        log(
+            "Sound start"
+        );
+    };
+
+    recognition.onsoundend = () => {
+
+        setValue(
+            "soundEvent",
+            "SOUND END"
+        );
+
+        log(
+            "Sound end"
+        );
+    };
+
+    recognition.onspeechstart = () => {
+
+        setValue(
+            "speechEvent",
+            "SPEECH START"
+        );
+
+        log(
+            "Speech start"
+        );
+    };
+
+    recognition.onspeechend = () => {
+
+        setValue(
+            "speechEvent",
+            "SPEECH END"
+        );
+
+        log(
+            "Speech end"
+        );
+    };
+
+    recognition.onnomatch = () => {
+
+        log(
+            "NO MATCH"
+        );
+
+        setValue(
+            "lastError",
+            "NO MATCH"
+        );
+    };
+
+    recognition.onerror = (event) => {
+
+        log(
+            "ERROR: "
+            + event.error
+        );
+
+        setValue(
+            "lastError",
+            event.error
+        );
+    };
+
+    recognition.onresult = (event) => {
+
+        log(
+            "RESULT RECEIVED"
+        );
+
+        let transcript = "";
+
+        for(
+            let i=0;
+            i<event.results.length;
+            i++
+        ){
+
+            transcript +=
+                event.results[i][0]
+                    .transcript
+                + " ";
+        }
+
+        setValue(
+            "transcriptBox",
+            transcript
+        );
+
+        const simplified =
+            [];
+
+        for(
+            let i=0;
+            i<event.results.length;
+            i++
+        ){
+
+            simplified.push({
+                transcript:
+                    event.results[i][0]
+                        .transcript,
+                confidence:
+                    event.results[i][0]
+                        .confidence,
+                final:
+                    event.results[i]
+                        .isFinal
+            });
+        }
+
+        document.getElementById(
+            "rawResults"
+        ).textContent =
+            JSON.stringify(
+                simplified,
+                null,
+                2
+            );
+    };
+
+    recognition.onend = () => {
+
+        restartCounter++;
+
+        setValue(
+            "restartCount",
+            restartCounter
+        );
+
+        setValue(
+            "recognitionStatus",
+            "RESTARTING"
+        );
+
+        log(
+            "Recognition ended"
+        );
+
+        setTimeout(() => {
+
+            try{
+
+                recognition.start();
+
+            }catch(err){
+
+                log(
+                    "Restart failed: "
+                    + err.message
+                );
+            }
+
+        },500);
+    };
+
+    recognition.start();
+}
+
+startBtn.addEventListener(
+    "click",
+    async () => {
+
+        try{
+
+            if(
+                document.getElementById(
+                    "enableVolumeMonitor"
+                ).checked
+            ){
+
+                await setupVolumeMonitor();
+            }
+
+            startRecognition();
+
+        }catch(err){
+
+            log(
+                "START ERROR: "
+                + err.message
+            );
+        }
+    }
+);
+
+initializeDiagnostics();
+
+</script>
+
 </body>
 </html>

@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birthday Meter Debug</title>
 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 
@@ -24,104 +23,116 @@
         🎤 Start Listening
     </button>
 
-    <h3>Last Transcript</h3>
-
     <div id="lastPhrase">
         Waiting...
     </div>
 
-    <h3>Diagnostics</h3>
-
     <div class="debug-panel">
 
-        <div>
-            <b>Browser:</b>
-            <span id="browserInfo"></span>
-        </div>
-
-        <div>
-            <b>Protocol:</b>
-            <span id="protocolInfo"></span>
-        </div>
-
-        <div>
-            <b>SpeechRecognition:</b>
-            <span id="speechSupport"></span>
-        </div>
-
-        <div>
-            <b>Microphone:</b>
-            <span id="micStatus"></span>
-        </div>
-
-        <div>
-            <b>Recognition State:</b>
-            <span id="recognitionStatus"></span>
-        </div>
-
-        <div>
-            <b>Last Error:</b>
-            <span id="errorStatus"></span>
-        </div>
-
-        <div>
-            <b>Volume:</b>
-            <span id="volumeValue">0</span>
-        </div>
-
-        <div>
-            <b>Recognized Count:</b>
-            <span id="recognizedCount">0</span>
-        </div>
+        <div><b>Browser:</b> <span id="browserInfo"></span></div>
+        <div><b>Protocol:</b> <span id="protocolInfo"></span></div>
+        <div><b>Speech API:</b> <span id="speechSupport"></span></div>
+        <div><b>Microphone:</b> <span id="micStatus"></span></div>
+        <div><b>Recognition:</b> <span id="recognitionStatus"></span></div>
+        <div><b>Error:</b> <span id="errorStatus"></span></div>
+        <div><b>Volume:</b> <span id="volumeValue">0</span></div>
+        <div><b>Recognitions:</b> <span id="recognizedCount">0</span></div>
 
     </div>
-
-    <h3>Live Log</h3>
 
     <div id="logPanel"></div>
 
 </div>
 
 <script>
-alert("script loaded");
-const meterFill = document.getElementById("meter-fill");
-const percentageText = document.getElementById("percentage");
-const lastPhrase = document.getElementById("lastPhrase");
-const startBtn = document.getElementById("startBtn");
 
-let meterValue = 0;
+// ========================================
+// DEBUG
+// ========================================
+
+alert("INLINE SCRIPT LOADED");
+
+window.onerror = function(
+    message,
+    source,
+    line,
+    column,
+    error
+){
+
+    alert(
+        "JS ERROR: " +
+        message +
+        " line " +
+        line
+    );
+
+    return false;
+};
+
+// ========================================
+// ELEMENTS
+// ========================================
+
+const meterFill =
+    document.getElementById("meter-fill");
+
+const percentageText =
+    document.getElementById("percentage");
+
+const lastPhrase =
+    document.getElementById("lastPhrase");
+
+const startBtn =
+    document.getElementById("startBtn");
+
 let currentVolume = 0;
+let meterValue = 0;
 let recognizedCount = 0;
 
-function log(message) {
+// ========================================
+// LOGGING
+// ========================================
+
+function log(message){
 
     console.log(message);
 
     const panel =
         document.getElementById("logPanel");
 
-    const line =
+    const row =
         document.createElement("div");
 
-    line.innerText =
+    row.innerText =
         new Date().toLocaleTimeString() +
         " - " +
         message;
 
-    panel.prepend(line);
+    panel.prepend(row);
 }
 
-function setDebug(id, value) {
+function setDebug(id,value){
 
-    document.getElementById(id).innerText =
-        value;
+    const el =
+        document.getElementById(id);
+
+    if(el){
+
+        el.innerText = value;
+    }
 }
 
-function updateMeter(amount) {
+// ========================================
+// METER
+// ========================================
 
-    meterValue += amount;
+function updateMeter(points){
 
-    if (meterValue > 100) {
+    meterValue += points;
+
+    if(meterValue > 100){
+
         meterValue = 100;
     }
 
@@ -132,7 +143,7 @@ function updateMeter(amount) {
         Math.round(meterValue) + "%";
 }
 
-function calculateGain(basePoints) {
+function calculateGain(base){
 
     const noiseFloor = 0.02;
 
@@ -143,12 +154,16 @@ function calculateGain(basePoints) {
         );
 
     const multiplier =
-        1 + Math.pow(volume * 12, 2);
+        1 + Math.pow(volume * 12,2);
 
-    return basePoints * multiplier;
+    return base * multiplier;
 }
 
-function initializeDiagnostics() {
+// ========================================
+// DIAGNOSTICS
+// ========================================
+
+function initializeDiagnostics(){
 
     setDebug(
         "browserInfo",
@@ -171,35 +186,27 @@ function initializeDiagnostics() {
             : "NOT SUPPORTED"
     );
 
-    log(
-        "Page initialized"
-    );
-
-    log(
-        "Protocol: " +
-        location.protocol
-    );
-
-    log(
-        "SpeechRecognition: " +
-        !!SpeechRecognition
-    );
+    log("Page initialized");
+    log("Protocol: " + location.protocol);
+    log("UserAgent: " + navigator.userAgent);
 }
 
-async function setupMicrophone() {
+// ========================================
+// MICROPHONE
+// ========================================
 
-    try {
+async function setupMicrophone(){
 
-        log(
-            "Requesting microphone access..."
-        );
+    try{
+
+        log("Requesting microphone");
 
         const stream =
             await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    noiseSuppression: true,
-                    echoCancellation: true,
-                    autoGainControl: false
+                audio:{
+                    noiseSuppression:true,
+                    echoCancellation:true,
+                    autoGainControl:false
                 }
             });
 
@@ -208,9 +215,7 @@ async function setupMicrophone() {
             "GRANTED"
         );
 
-        log(
-            "Microphone access granted"
-        );
+        log("Microphone granted");
 
         const audioContext =
             new (
@@ -235,7 +240,7 @@ async function setupMicrophone() {
                 analyser.fftSize
             );
 
-        function monitorVolume() {
+        function monitor(){
 
             analyser.getByteTimeDomainData(
                 dataArray
@@ -243,14 +248,14 @@ async function setupMicrophone() {
 
             let sumSquares = 0;
 
-            for (
-                let i = 0;
-                i < dataArray.length;
+            for(
+                let i=0;
+                i<dataArray.length;
                 i++
-            ) {
+            ){
 
                 const sample =
-                    (dataArray[i] - 128) / 128;
+                    (dataArray[i]-128)/128;
 
                 sumSquares +=
                     sample * sample;
@@ -268,13 +273,13 @@ async function setupMicrophone() {
             );
 
             requestAnimationFrame(
-                monitorVolume
+                monitor
             );
         }
 
-        monitorVolume();
+        monitor();
 
-    } catch (err) {
+    }catch(err){
 
         setDebug(
             "micStatus",
@@ -282,7 +287,7 @@ async function setupMicrophone() {
         );
 
         log(
-            "Microphone failed: " +
+            "Microphone error: " +
             err.message
         );
 
@@ -290,13 +295,17 @@ async function setupMicrophone() {
     }
 }
 
-function startRecognition() {
+// ========================================
+// SPEECH RECOGNITION
+// ========================================
+
+function startRecognition(){
 
     const SpeechRecognition =
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
+    if(!SpeechRecognition){
 
         log(
             "SpeechRecognition unavailable"
@@ -309,12 +318,8 @@ function startRecognition() {
         new SpeechRecognition();
 
     recognition.lang = "en-US";
-
     recognition.continuous = false;
-
     recognition.interimResults = true;
-
-    recognition.maxAlternatives = 5;
 
     recognition.onstart = () => {
 
@@ -328,33 +333,17 @@ function startRecognition() {
         );
     };
 
-    recognition.onaudiostart = () => {
+    recognition.onaudiostart =
+        () => log("Audio start");
 
-        log(
-            "Audio detected"
-        );
-    };
+    recognition.onspeechstart =
+        () => log("Speech start");
 
-    recognition.onspeechstart = () => {
+    recognition.onspeechend =
+        () => log("Speech end");
 
-        log(
-            "Speech detected"
-        );
-    };
-
-    recognition.onspeechend = () => {
-
-        log(
-            "Speech ended"
-        );
-    };
-
-    recognition.onaudioend = () => {
-
-        log(
-            "Audio ended"
-        );
-    };
+    recognition.onaudioend =
+        () => log("Audio end");
 
     recognition.onresult = (event) => {
 
@@ -367,11 +356,11 @@ function startRecognition() {
 
         let transcript = "";
 
-        for (
-            let i = event.resultIndex;
-            i < event.results.length;
+        for(
+            let i=event.resultIndex;
+            i<event.results.length;
             i++
-        ) {
+        ){
 
             transcript +=
                 event.results[i][0].transcript +
@@ -393,37 +382,37 @@ function startRecognition() {
 
         const normalized =
             transcript
-                .replace(/[^\w\s]/g, "")
+                .replace(/[^\w\s]/g,"")
                 .trim();
 
-        if (
+        if(
             normalized.includes(
                 "happy birthday"
             )
-        ) {
+        ){
 
             const gain =
                 calculateGain(1);
 
             log(
-                "Happy Birthday -> +" +
+                "Happy Birthday +" +
                 gain.toFixed(2)
             );
 
             updateMeter(gain);
         }
 
-        if (
+        if(
             normalized.includes(
                 "i love you"
             )
-        ) {
+        ){
 
             const gain =
                 calculateGain(2);
 
             log(
-                "I Love You -> +" +
+                "I Love You +" +
                 gain.toFixed(2)
             );
 
@@ -457,11 +446,11 @@ function startRecognition() {
 
         setTimeout(() => {
 
-            try {
+            try{
 
                 recognition.start();
 
-            } catch (e) {
+            }catch(e){
 
                 log(
                     "Restart failed: " +
@@ -469,17 +458,21 @@ function startRecognition() {
                 );
             }
 
-        }, 500);
+        },500);
     };
 
     recognition.start();
 }
 
+// ========================================
+// START
+// ========================================
+
 startBtn.addEventListener(
     "click",
     async () => {
 
-        try {
+        try{
 
             await setupMicrophone();
 
@@ -487,16 +480,21 @@ startBtn.addEventListener(
 
             startBtn.disabled = true;
 
-        } catch (err) {
+            log(
+                "System started"
+            );
+
+        }catch(err){
 
             alert(
-                "Microphone access failed."
+                "Microphone access failed"
             );
         }
     }
 );
 
 initializeDiagnostics();
+
 </script>
 
 </body>

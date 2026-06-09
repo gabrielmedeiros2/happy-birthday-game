@@ -5,11 +5,31 @@ const startBtn = document.getElementById("startBtn");
 
 let meterValue = 0;
 let currentVolume = 0;
-let recognitionRunning = false;
+let recognizedCount = 0;
 
-// =====================================
-// Meter
-// =====================================
+function log(message) {
+
+    console.log(message);
+
+    const panel =
+        document.getElementById("logPanel");
+
+    const line =
+        document.createElement("div");
+
+    line.innerText =
+        new Date().toLocaleTimeString() +
+        " - " +
+        message;
+
+    panel.prepend(line);
+}
+
+function setDebug(id, value) {
+
+    document.getElementById(id).innerText =
+        value;
+}
 
 function updateMeter(amount) {
 
@@ -19,120 +39,172 @@ function updateMeter(amount) {
         meterValue = 100;
     }
 
-    meterFill.style.height = meterValue + "%";
-    percentageText.innerText = Math.round(meterValue) + "%";
-}
+    meterFill.style.height =
+        meterValue + "%";
 
-// =====================================
-// Convert volume into points
-// =====================================
+    percentageText.innerText =
+        Math.round(meterValue) + "%";
+}
 
 function calculateGain(basePoints) {
 
     const noiseFloor = 0.02;
 
-    let volume = Math.max(
-        0,
-        currentVolume - noiseFloor
-    );
+    const volume =
+        Math.max(
+            0,
+            currentVolume - noiseFloor
+        );
 
-    /*
-     * Typical values:
-     * Quiet = 0.02 - 0.05
-     * Normal = 0.05 - 0.10
-     * Loud = 0.10 - 0.20
-     * Shouting = 0.20+
-     */
-
-    let multiplier =
+    const multiplier =
         1 + Math.pow(volume * 12, 2);
 
     return basePoints * multiplier;
 }
 
-// =====================================
-// Microphone Volume Detection
-// =====================================
+function initializeDiagnostics() {
 
-async function setupMicrophoneLevelDetection() {
+    setDebug(
+        "browserInfo",
+        navigator.userAgent
+    );
 
-    const stream =
-        await navigator.mediaDevices.getUserMedia({
-            audio: {
-                noiseSuppression: true,
-                echoCancellation: true,
-                autoGainControl: false
-            }
-        });
+    setDebug(
+        "protocolInfo",
+        location.protocol
+    );
 
-    const audioContext =
-        new (window.AudioContext ||
-            window.webkitAudioContext)();
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
-    const source =
-        audioContext.createMediaStreamSource(stream);
+    setDebug(
+        "speechSupport",
+        SpeechRecognition
+            ? "SUPPORTED"
+            : "NOT SUPPORTED"
+    );
 
-    const analyser =
-        audioContext.createAnalyser();
+    log(
+        "Page initialized"
+    );
 
-    analyser.fftSize = 2048;
+    log(
+        "Protocol: " +
+        location.protocol
+    );
 
-    source.connect(analyser);
-
-    const dataArray =
-        new Uint8Array(analyser.fftSize);
-
-    function monitorVolume() {
-
-        analyser.getByteTimeDomainData(
-            dataArray
-        );
-
-        let sumSquares = 0;
-
-        for (
-            let i = 0;
-            i < dataArray.length;
-            i++
-        ) {
-
-            const sample =
-                (dataArray[i] - 128) / 128;
-
-            sumSquares +=
-                sample * sample;
-        }
-
-        currentVolume =
-            Math.sqrt(
-                sumSquares / dataArray.length
-            );
-
-        const volumeDebug =
-            document.getElementById(
-                "volumeDebug"
-            );
-
-        if (volumeDebug) {
-
-            volumeDebug.innerText =
-                "Volume: " +
-                currentVolume.toFixed(3);
-        }
-
-        requestAnimationFrame(
-            monitorVolume
-        );
-    }
-
-    monitorVolume();
+    log(
+        "SpeechRecognition: " +
+        !!SpeechRecognition
+    );
 }
 
-// =====================================
-// Speech Recognition
-// =====================================
+async function setupMicrophone() {
 
-function startSpeechRecognition() {
+    try {
+
+        log(
+            "Requesting microphone access..."
+        );
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    noiseSuppression: true,
+                    echoCancellation: true,
+                    autoGainControl: false
+                }
+            });
+
+        setDebug(
+            "micStatus",
+            "GRANTED"
+        );
+
+        log(
+            "Microphone access granted"
+        );
+
+        const audioContext =
+            new (
+                window.AudioContext ||
+                window.webkitAudioContext
+            )();
+
+        const source =
+            audioContext.createMediaStreamSource(
+                stream
+            );
+
+        const analyser =
+            audioContext.createAnalyser();
+
+        analyser.fftSize = 2048;
+
+        source.connect(analyser);
+
+        const dataArray =
+            new Uint8Array(
+                analyser.fftSize
+            );
+
+        function monitorVolume() {
+
+            analyser.getByteTimeDomainData(
+                dataArray
+            );
+
+            let sumSquares = 0;
+
+            for (
+                let i = 0;
+                i < dataArray.length;
+                i++
+            ) {
+
+                const sample =
+                    (dataArray[i] - 128) / 128;
+
+                sumSquares +=
+                    sample * sample;
+            }
+
+            currentVolume =
+                Math.sqrt(
+                    sumSquares /
+                    dataArray.length
+                );
+
+            setDebug(
+                "volumeValue",
+                currentVolume.toFixed(4)
+            );
+
+            requestAnimationFrame(
+                monitorVolume
+            );
+        }
+
+        monitorVolume();
+
+    } catch (err) {
+
+        setDebug(
+            "micStatus",
+            "DENIED"
+        );
+
+        log(
+            "Microphone failed: " +
+            err.message
+        );
+
+        throw err;
+    }
+}
+
+function startRecognition() {
 
     const SpeechRecognition =
         window.SpeechRecognition ||
@@ -140,8 +212,8 @@ function startSpeechRecognition() {
 
     if (!SpeechRecognition) {
 
-        alert(
-            "Speech Recognition is not supported on this browser."
+        log(
+            "SpeechRecognition unavailable"
         );
 
         return;
@@ -150,24 +222,62 @@ function startSpeechRecognition() {
     const recognition =
         new SpeechRecognition();
 
-    recognition.continuous = false;
-    recognition.interimResults = true;
     recognition.lang = "en-US";
+
+    recognition.continuous = false;
+
+    recognition.interimResults = true;
+
     recognition.maxAlternatives = 5;
 
     recognition.onstart = () => {
 
-        recognitionRunning = true;
-
-        console.log(
-            "Speech recognition started"
+        setDebug(
+            "recognitionStatus",
+            "STARTED"
         );
 
-        lastPhrase.innerText =
-            "Listening...";
+        log(
+            "Recognition started"
+        );
+    };
+
+    recognition.onaudiostart = () => {
+
+        log(
+            "Audio detected"
+        );
+    };
+
+    recognition.onspeechstart = () => {
+
+        log(
+            "Speech detected"
+        );
+    };
+
+    recognition.onspeechend = () => {
+
+        log(
+            "Speech ended"
+        );
+    };
+
+    recognition.onaudioend = () => {
+
+        log(
+            "Audio ended"
+        );
     };
 
     recognition.onresult = (event) => {
+
+        recognizedCount++;
+
+        setDebug(
+            "recognizedCount",
+            recognizedCount
+        );
 
         let transcript = "";
 
@@ -187,21 +297,18 @@ function startSpeechRecognition() {
                 .toLowerCase()
                 .trim();
 
+        lastPhrase.innerText =
+            transcript;
+
+        log(
+            "Transcript: " +
+            transcript
+        );
+
         const normalized =
             transcript
                 .replace(/[^\w\s]/g, "")
-                .replace(/\s+/g, " ")
                 .trim();
-
-        lastPhrase.innerText =
-            `"${transcript}"`;
-
-        console.log(
-            "Recognized:",
-            normalized
-        );
-
-        // HAPPY BIRTHDAY
 
         if (
             normalized.includes(
@@ -212,15 +319,13 @@ function startSpeechRecognition() {
             const gain =
                 calculateGain(1);
 
-            console.log(
-                "Happy Birthday",
-                gain
+            log(
+                "Happy Birthday -> +" +
+                gain.toFixed(2)
             );
 
             updateMeter(gain);
         }
-
-        // I LOVE YOU
 
         if (
             normalized.includes(
@@ -231,9 +336,9 @@ function startSpeechRecognition() {
             const gain =
                 calculateGain(2);
 
-            console.log(
-                "I Love You",
-                gain
+            log(
+                "I Love You -> +" +
+                gain.toFixed(2)
             );
 
             updateMeter(gain);
@@ -242,21 +347,25 @@ function startSpeechRecognition() {
 
     recognition.onerror = (event) => {
 
-        console.log(
-            "Recognition error:",
+        setDebug(
+            "errorStatus",
             event.error
         );
 
-        lastPhrase.innerText =
-            "Error: " +
-            event.error;
+        log(
+            "ERROR: " +
+            event.error
+        );
     };
 
     recognition.onend = () => {
 
-        recognitionRunning = false;
+        setDebug(
+            "recognitionStatus",
+            "RESTARTING"
+        );
 
-        console.log(
+        log(
             "Recognition ended"
         );
 
@@ -264,15 +373,14 @@ function startSpeechRecognition() {
 
             try {
 
-                if (!recognitionRunning) {
+                recognition.start();
 
-                    recognition.start();
-                }
+            } catch (e) {
 
-            }
-            catch (err) {
-
-                console.log(err);
+                log(
+                    "Restart failed: " +
+                    e.message
+                );
             }
 
         }, 500);
@@ -281,37 +389,25 @@ function startSpeechRecognition() {
     recognition.start();
 }
 
-// =====================================
-// Start Button
-// =====================================
-
 startBtn.addEventListener(
     "click",
     async () => {
 
         try {
 
+            await setupMicrophone();
+
+            startRecognition();
+
             startBtn.disabled = true;
-            startBtn.innerText =
-                "🎤 Listening...";
 
-            await setupMicrophoneLevelDetection();
-
-            startSpeechRecognition();
-
-        }
-        catch (err) {
-
-            console.error(err);
+        } catch (err) {
 
             alert(
-                "Unable to access microphone."
+                "Microphone access failed."
             );
-
-            startBtn.disabled = false;
-
-            startBtn.innerText =
-                "🎤 Start Listening";
         }
     }
 );
+
+initializeDiagnostics();

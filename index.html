@@ -1,34 +1,88 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Birthday Meter</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Birthday Meter Debug</title>
+
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <div class="container">
-        <h1>🎂 Happy Birthday! 🎉</h1>
+<div class="container">
 
-        <div class="meter-container">
-            <div id="meter-fill"></div>
-        </div>
+    <h1>🎂 Birthday Meter 🎂</h1>
 
-        <div class="percentage" id="percentage">0%</div>
-
-        <button id="startBtn">🎤 Start Listening</button>
-
-        <div class="status">
-            <p><strong>Last phrase:</strong></p>
-            <p id="lastPhrase">Waiting...</p>
-        </div>
-
-	<div id="volumeDebug">
-    	    Volume: 0
-	</div>
+    <div class="meter-container">
+        <div id="meter-fill"></div>
     </div>
 
-    <script src="script.js"></script>
+    <div id="percentage">0%</div>
+
+    <button id="startBtn">
+        🎤 Start Listening
+    </button>
+
+    <h3>Last Transcript</h3>
+
+    <div id="lastPhrase">
+        Waiting...
+    </div>
+
+    <h3>Diagnostics</h3>
+
+    <div class="debug-panel">
+
+        <div>
+            <b>Browser:</b>
+            <span id="browserInfo"></span>
+        </div>
+
+        <div>
+            <b>Protocol:</b>
+            <span id="protocolInfo"></span>
+        </div>
+
+        <div>
+            <b>SpeechRecognition:</b>
+            <span id="speechSupport"></span>
+        </div>
+
+        <div>
+            <b>Microphone:</b>
+            <span id="micStatus"></span>
+        </div>
+
+        <div>
+            <b>Recognition State:</b>
+            <span id="recognitionStatus"></span>
+        </div>
+
+        <div>
+            <b>Last Error:</b>
+            <span id="errorStatus"></span>
+        </div>
+
+        <div>
+            <b>Volume:</b>
+            <span id="volumeValue">0</span>
+        </div>
+
+        <div>
+            <b>Recognized Count:</b>
+            <span id="recognizedCount">0</span>
+        </div>
+
+    </div>
+
+    <h3>Live Log</h3>
+
+    <div id="logPanel"></div>
+
+</div>
+
+<script src="script.js"></script>
+
 </body>
 </html>

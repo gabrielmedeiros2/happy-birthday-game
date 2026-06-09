@@ -27,6 +27,16 @@
 	<div id="volumeDebug">
     	    Volume: 0
 	</div>
+
+    <div style="margin-top:10px;font-size:12px;text-align:left;">
+        <div><b>Recognition Status:</b> <span id="recognitionStatus">Idle</span></div>
+        <div><b>Speech Detected:</b> <span id="speechDetected">No</span></div>
+        <div><b>Audio Detected:</b> <span id="audioDetected">No</span></div>
+        <div><b>Last Error:</b> <span id="lastError">None</span></div>
+        <div><b>Raw Transcript:</b></div>
+        <div id="rawTranscript" style="word-break:break-word;"></div>
+    </div>
+
     </div>
 
     <script>
@@ -168,7 +178,7 @@
             if (!SpeechRecognition) {
 
                 alert(
-                    "Speech Recognition is not supported in this browser. Use Chrome or Edge."
+                    "Speech Recognition is not supported."
                 );
 
                 return;
@@ -177,46 +187,128 @@
             const recognition =
                 new SpeechRecognition();
 
-            recognition.continuous = true;
-            recognition.interimResults = false;
+            recognition.continuous = false;
+            recognition.interimResults = true;
             recognition.lang = "en-US";
-            recognition.maxAlternatives = 5;
+            recognition.maxAlternatives = 10;
+
+            const recognitionStatus =
+                document.getElementById(
+                    "recognitionStatus"
+                );
+
+            const speechDetected =
+                document.getElementById(
+                    "speechDetected"
+                );
+
+            const audioDetected =
+                document.getElementById(
+                    "audioDetected"
+                );
+
+            const lastError =
+                document.getElementById(
+                    "lastError"
+                );
+
+            const rawTranscript =
+                document.getElementById(
+                    "rawTranscript"
+                );
+
+            recognition.onstart = () => {
+
+                recognitionStatus.innerText =
+                    "Started";
+
+                console.log(
+                    "Recognition started"
+                );
+            };
+
+            recognition.onaudiostart = () => {
+
+                audioDetected.innerText =
+                    "YES";
+
+                console.log(
+                    "Audio detected"
+                );
+            };
+
+            recognition.onaudioend = () => {
+
+                audioDetected.innerText =
+                    "NO";
+
+                console.log(
+                    "Audio ended"
+                );
+            };
+
+            recognition.onspeechstart = () => {
+
+                speechDetected.innerText =
+                    "YES";
+
+                console.log(
+                    "Speech detected"
+                );
+            };
+
+            recognition.onspeechend = () => {
+
+                speechDetected.innerText =
+                    "NO";
+
+                console.log(
+                    "Speech ended"
+                );
+            };
 
             recognition.onresult = (event) => {
 
-                const result =
-                    event.results[
-                        event.results.length - 1
-                    ];
+                let transcript = "";
 
-                const transcript =
-                    result[0].transcript
+                for (
+                    let i = event.resultIndex;
+                    i < event.results.length;
+                    i++
+                ) {
+
+                    transcript +=
+                        event.results[i][0].transcript +
+                        " ";
+                }
+
+                transcript =
+                    transcript
                         .toLowerCase()
                         .trim();
 
-                const confidence =
-                    result[0].confidence || 0;
+                rawTranscript.innerText =
+                    transcript;
 
                 lastPhrase.innerText =
-                    `"${transcript}" (${(
-                        confidence * 100
-                    ).toFixed(0)}%)`;
+                    transcript;
 
                 console.log(
-                    "Phrase:",
-                    transcript,
-                    "Confidence:",
-                    confidence
+                    "Transcript:",
+                    transcript
                 );
 
-                // Ignore uncertain recognition
-                if (confidence < 0.5) {
-                    return;
-                }
+                const normalized =
+                    transcript
+                        .replace(/[^\w\s]/g, "")
+                        .replace(/\s+/g, " ")
+                        .trim();
 
-                // HAPPY BIRTHDAY
+                // No confidence filtering
+                // Android frequently returns 0
+
                 if (
-                    transcript.includes(
+                    normalized.includes(
                         "happy birthday"
                     )
                 ) {
@@ -225,18 +317,15 @@
                         calculateGain(1);
 
                     console.log(
-                        "Happy Birthday detected",
+                        "Happy Birthday:",
                         gain
                     );
 
                     updateMeter(gain);
-
-                    return;
                 }
 
-                // I LOVE YOU
                 if (
-                    transcript.includes(
+                    normalized.includes(
                         "i love you"
                     )
                 ) {
@@ -245,36 +334,56 @@
                         calculateGain(2);
 
                     console.log(
-                        "I Love You detected",
+                        "I Love You:",
                         gain
                     );
 
                     updateMeter(gain);
-
-                    return;
                 }
             };
 
             recognition.onerror = (event) => {
 
+                lastError.innerText =
+                    event.error;
+
                 console.error(
-                    "Speech recognition error:",
+                    "Recognition error:",
                     event.error
                 );
             };
 
-            recognition.onend = () => {
+            recognition.onnomatch = () => {
 
                 console.log(
-                    "Recognition restarted"
+                    "No speech match"
                 );
 
-                try {
-                    recognition.start();
-                }
-                catch (e) {
-                    console.error(e);
-                }
+                lastError.innerText =
+                    "No match";
+            };
+
+            recognition.onend = () => {
+
+                recognitionStatus.innerText =
+                    "Restarting";
+
+                console.log(
+                    "Recognition ended"
+                );
+
+                setTimeout(() => {
+
+                    try {
+
+                        recognition.start();
+
+                    } catch (e) {
+
+                        console.error(e);
+                    }
+
+                }, 300);
             };
 
             recognition.start();

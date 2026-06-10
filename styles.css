@@ -34,6 +34,7 @@ body {
     flex-direction: column;
 
     align-items: center;
+    justify-content: center;
 
     padding: 10px;
 
@@ -135,12 +136,14 @@ button {
 }
 
 .status {
-
     width: 100%;
-
     margin-top: 8px;
-
     flex-shrink: 0;
+}
+
+.text-phrase {
+    text-align: center; 
+    margin-bottom: 0px;
 }
 
 #lastPhrase {
@@ -231,4 +234,79 @@ button {
     100% {
         rotate: -5deg;
     }
+}
+
+#victoryMessage {
+    position: absolute;
+
+    top: 50%;
+    left: 50%;
+
+    transform:
+        translate(-50%, -50%)
+        scale(.5);
+
+    opacity: 0;
+
+    font-size: clamp(
+        1rem,
+        3vw,
+        1.8rem
+    );
+
+    font-weight: bold;
+
+    color: #ff4081;
+
+    text-align: center;
+
+    pointer-events: none;
+}
+
+.victory-visible {
+    animation:
+        victoryAppear
+        1s forwards;
+}
+
+@keyframes victoryAppear {
+
+    from {
+
+        opacity: 0;
+
+        transform:
+            translate(-50%, -50%)
+            scale(.5);
+    }
+
+    to {
+
+        opacity: 1;
+
+        transform:
+            translate(-50%, -50%)
+            scale(1);
+    }
+}
+
+
+.invisible {
+    display: none;
+}
+
+#turnInfo {
+
+    font-weight: bold;
+
+    color: #ff4081;
+
+    margin-top: 5px;
+}
+
+#turnCountdown {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ff9800;
+    min-height: 24px;
 }

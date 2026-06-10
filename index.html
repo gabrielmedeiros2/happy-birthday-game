@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birthday Meter</title>
-
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<div class="container">
+<div id="container-game" class="container">
 
     <h1>🎂 Happy Birthday! 🎉</h1>
 
@@ -17,504 +16,402 @@
         <div id="meter-fill"></div>
     </div>
 
-    <div class="percentage" id="percentage">
-        0%
+    <div class="percentage" id="percentage">0&#8369;</div>
+
+    <div id="turnInfo">
+        Turn 1 / 8
     </div>
 
-    <div id="boostIndicator">
-        🚀 2X BOOST
+    <div id="turnCountdown">
+        10s
     </div>
 
+    <div id="boostIndicator">🚀 2X BOOST</div>
     <div id="boostTimer"></div>
 
-    <div id="volumeDebug">
-        Volume: 0
-    </div>
-
-    <button id="startBtn">
-        🎤 Start Listening
-    </button>
+    <button id="startBtn">🎤 Start Listening</button>
 
     <div class="status">
-        <p><strong>Last phrase:</strong></p>
-        <div id="lastPhrase">
-            Waiting...
-        </div>
+        <p class="text-phrase"><strong>Last phrase:</strong></p>
+        <div id="lastPhrase">Waiting...</div>
     </div>
 
 </div>
 
+<div id="container-victory" class="container invisible">
+    <div id="victoryMessage">
+        <span>🎉 Congratulations, You Won! 🎉</span><br/>
+        <span style="font-size: 1rem;">You children love you so much that gift increased to <strong>10,000&#8369;</strong></span>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script>
+const meterFill=document.getElementById("meter-fill");
+const percentageText=document.getElementById("percentage");
+const lastPhrase=document.getElementById("lastPhrase");
+const startBtn=document.getElementById("startBtn");
+const boostIndicator=document.getElementById("boostIndicator");
+const boostTimer=document.getElementById("boostTimer");
+const volumeDebug=document.getElementById("volumeDebug");
+const containerGame=document.getElementById("container-game");
+const containerVictory=document.getElementById("container-victory");
 
-const meterFill =
-    document.getElementById(
-        "meter-fill"
-    );
+const meterMax = 8000;
+const totalTurns = 8;
+const turnDurationMs = 10000;
+const turnCap = meterMax / totalTurns;
 
-const percentageText =
-    document.getElementById(
-        "percentage"
-    );
+let currentTurn = 1;
+let turnTimer = null;
+let turnRunning = false;
 
-const lastPhrase =
-    document.getElementById(
-        "lastPhrase"
-    );
-
-const startBtn =
-    document.getElementById(
-        "startBtn"
-    );
-
-const boostIndicator =
-    document.getElementById(
-        "boostIndicator"
-    );
-
-const boostTimer =
-    document.getElementById(
-        "boostTimer"
-    );
-
-const volumeDebug =
-    document.getElementById(
-        "volumeDebug"
-    );
-
-let meterValue = 0;
-
-let recognition = null;
-
-let gameFinished = false;
-
-let currentVolume = 0;
-
-let boostActive = false;
-
-let boostTimeout = null;
-
-let boostInterval = null;
-
-// ========================================
-// Meter
-// ========================================
+let meterValue=0;
+let recognition=null;
+let gameFinished=false;
+let currentVolume=0;
+let boostActive=false;
+let boostTimeout=null;
+let boostInterval=null;
+let fireworksInterval=null;
 
 function updateMeter(amount){
-
-    if(gameFinished){
-        return;
-    }
-
+    if(gameFinished) return;
+    const turnLimit = getCurrentTurnLimit();
     meterValue += amount;
 
-    if(meterValue >= 100){
-
-        meterValue = 100;
-
-        gameFinished = true;
-
-        startBtn.disabled = false;
-
-        startBtn.innerText =
-            "🔄 Restart";
+    if(meterValue > turnLimit){
+        meterValue = turnLimit;
+        endTurn();
     }
 
-    meterFill.style.height =
-        meterValue + "%";
+    if(meterValue>=meterMax){
+        meterValue=meterMax;
+        triggerVictory();
+    }
 
-    percentageText.innerText =
-        Math.round(meterValue) + "%";
+    meterFill.style.height=(meterValue * 100)/meterMax+"%";
+    percentageText.innerText=Math.round(meterValue)+"\u20B1";
 }
 
-// ========================================
-// Boost
-// ========================================
-
 function activateBoost(){
-
-    boostActive = true;
+    boostActive=true;
 
     clearTimeout(boostTimeout);
     clearInterval(boostInterval);
 
-    boostIndicator.classList.add(
-        "boost-active"
-    );
+    boostIndicator.classList.add("boost-active");
+    boostIndicator.style.opacity="1";
 
-    boostIndicator.style.opacity =
-        "1";
+    const startTime=Date.now();
 
-    const startTime =
-        Date.now();
+    boostInterval=setInterval(()=>{
+        const elapsed=Date.now()-startTime;
+        const remaining=Math.max(0,30000-elapsed);
+        boostTimer.innerText=Math.ceil(remaining/1000)+"s";
 
-    boostInterval =
-        setInterval(() => {
+        const progress=remaining/30000;
+        boostIndicator.style.fontSize=(1+(2*progress))+"rem";
+    },100);
 
-            const elapsed =
-                Date.now() - startTime;
-
-            const remaining =
-                Math.max(
-                    0,
-                    30000 - elapsed
-                );
-
-            const seconds =
-                Math.ceil(
-                    remaining / 1000
-                );
-
-            boostTimer.innerText =
-                seconds + "s";
-
-            const progress =
-                remaining / 30000;
-
-            const size =
-                1 + (2 * progress);
-
-            boostIndicator.style.fontSize =
-                size + "rem";
-
-        },100);
-
-    boostTimeout =
-        setTimeout(() => {
-
-            boostActive = false;
-
-            boostIndicator.style.opacity =
-                "0";
-
-            boostTimer.innerText = "";
-
-            boostIndicator.classList.remove(
-                "boost-active"
-            );
-
-            clearInterval(
-                boostInterval
-            );
-
-        },30000);
+    boostTimeout=setTimeout(()=>{
+        boostActive=false;
+        boostIndicator.style.opacity="0";
+        boostTimer.innerText="";
+        boostIndicator.classList.remove("boost-active");
+        clearInterval(boostInterval);
+    },30000);
 }
 
-// ========================================
-// Volume
-// ========================================
-
 async function startVolumeMonitor(){
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
 
-    const stream =
-        await navigator.mediaDevices
-            .getUserMedia({
-                audio:true
-            });
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const source=ctx.createMediaStreamSource(stream);
+    const analyser=ctx.createAnalyser();
 
-    const audioContext =
-        new (
-            window.AudioContext ||
-            window.webkitAudioContext
-        )();
-
-    const source =
-        audioContext
-            .createMediaStreamSource(
-                stream
-            );
-
-    const analyser =
-        audioContext
-            .createAnalyser();
-
-    analyser.fftSize = 2048;
-
+    analyser.fftSize=2048;
     source.connect(analyser);
 
-    const dataArray =
-        new Uint8Array(
-            analyser.fftSize
-        );
+    const data=new Uint8Array(analyser.fftSize);
 
     function monitor(){
+        analyser.getByteTimeDomainData(data);
 
-        analyser.getByteTimeDomainData(
-            dataArray
-        );
-
-        let sum = 0;
-
-        for(
-            let i = 0;
-            i < dataArray.length;
-            i++
-        ){
-
-            const sample =
-                (dataArray[i]-128)/128;
-
-            sum +=
-                sample * sample;
+        let sum=0;
+        for(let i=0;i<data.length;i++){
+            const sample=(data[i]-128)/128;
+            sum+=sample*sample;
         }
 
-        currentVolume =
-            Math.sqrt(
-                sum /
-                dataArray.length
-            );
+        currentVolume=Math.sqrt(sum/data.length);
+        volumeDebug.innerText="Volume: "+currentVolume.toFixed(3);
 
-        volumeDebug.innerText =
-            "Volume: " +
-            currentVolume.toFixed(3);
-
-        requestAnimationFrame(
-            monitor
-        );
+        if(!gameFinished){
+            requestAnimationFrame(monitor);
+        }
     }
 
     monitor();
-
-    stream.getTracks()
-        .forEach(track =>
-            track.stop()
-        );
 }
 
 function calculateGain(){
-
-    const noiseFloor = 0.02;
-
-    const volume =
-        Math.max(
-            0,
-            currentVolume -
-            noiseFloor
-        );
-
-    let points =
-        1 +
-        Math.pow(
-            volume * 20,
-            2
-        );
+    const baseValue = 100;
+    const volume=Math.max(0,currentVolume-0.02);
+    let points=baseValue+Math.pow(volume*20,2);
 
     if(boostActive){
-
-        points *= 2;
+        points*=2;
     }
 
     return points;
 }
 
-// ========================================
-// Speech Recognition
-// ========================================
+function startFireworks(){
+
+    const duration = 3000;
+
+    const end =
+        Date.now() +
+        duration;
+
+    const interval =
+        setInterval(() => {
+
+            confetti({
+
+                particleCount: 50,
+
+                spread: 120,
+
+                origin: {
+                    x: Math.random(),
+                    y: Math.random() * .6
+                }
+            });
+
+            if(
+                Date.now() > end
+            ){
+                clearInterval(
+                    interval
+                );
+            }
+
+        },200);
+}
+
+function triggerVictory(){
+    gameFinished=true;
+
+    boostActive=false;
+    clearTimeout(boostTimeout);
+    clearInterval(boostInterval);
+
+    boostIndicator.style.opacity="0";
+    boostTimer.innerText="";
+    boostIndicator.classList.remove("boost-active");
+
+    if(recognition){
+        try{
+            recognition.onend=null;
+            recognition.stop();
+        }catch(e){}
+    }
+
+    startBtn.style.display="none";
+
+    containerGame.classList.add("invisible");
+    containerVictory.classList.remove("invisible");
+
+    startFireworks();
+
+    document.getElementById("victoryMessage")
+            .classList.add("victory-visible");
+}
 
 function startRecognition(){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 
-    const SpeechRecognition =
-        window.SpeechRecognition ||
-        window.webkitSpeechRecognition;
-
-    if(!SpeechRecognition){
-
-        alert(
-            "Speech Recognition is not supported."
-        );
-
+    if(!SR){
+        alert("Speech Recognition is not supported.");
         return;
     }
 
-    recognition =
-        new SpeechRecognition();
+    recognition=new SR();
 
-    recognition.lang = "en-US";
+    recognition.lang="en-US";
+    recognition.continuous=false;
+    recognition.interimResults=true;
 
-    recognition.continuous = false;
+    recognition.onresult=(event)=>{
+        let transcript="";
 
-    recognition.interimResults = true;
-
-    recognition.maxAlternatives = 10;
-
-    recognition.onresult = (event) => {
-
-        let transcript = "";
-
-        for(
-            let i=0;
-            i<event.results.length;
-            i++
-        ){
-
-            transcript +=
-                event.results[i][0]
-                    .transcript
-                + " ";
+        for(let i=0;i<event.results.length;i++){
+            transcript+=event.results[i][0].transcript+" ";
         }
 
-        transcript =
-            transcript
-                .toLowerCase()
-                .trim();
+        transcript=transcript.toLowerCase().trim();
+        lastPhrase.innerText=transcript;
 
-        lastPhrase.innerText =
-            transcript;
+        const normalized=transcript.replace(/[^\w\s]/g,"").replace(/\s+/g," ").trim();
 
-        const normalized =
-            transcript
-                .replace(/[^\w\s]/g,"")
-                .replace(/\s+/g," ")
-                .trim();
-
-        if(
-            normalized.includes(
-                "i love you"
-            )
-        ){
-
+        if(normalized.includes("i love you")){
             activateBoost();
-
             return;
         }
 
-        if(
-            normalized.includes(
-                "happy birthday"
-            )
-        ){
-
-            updateMeter(
-                calculateGain()
-            );
+        if(normalized.includes("happy birthday")){
+            updateMeter(calculateGain());
         }
     };
 
-    recognition.onerror = (event) => {
+    recognition.onend=()=>{
+        if(gameFinished) return;
 
-        console.log(
-            event.error
-        );
-    };
-
-    recognition.onend = () => {
-
-        if(gameFinished){
-            return;
-        }
-
-        setTimeout(() => {
-
-            try{
-
-                recognition.start();
-
-            }catch(err){
-
-                console.log(err);
-            }
-
+        setTimeout(()=>{
+            try{ recognition.start(); } catch(e){}
         },300);
     };
 
     recognition.start();
 }
 
-// ========================================
-// Restart
-// ========================================
+startBtn.addEventListener("click", async ()=>{
+    updateMeter(calculateGain());
+    if(turnRunning){
+        return;
+    }
 
-function restartGame(){
+    try{
+        const stream =
+            await navigator.mediaDevices
+                .getUserMedia({
+                    audio:true
+                });
 
-    meterValue = 0;
+        stream.getTracks()
+            .forEach(track =>
+                track.stop()
+            );
 
-    gameFinished = false;
+        startVolumeMonitor();
+
+        startBtn.disabled = true;
+
+        startBtn.innerText =
+            "🎤 Listening...";
+
+        document.getElementById(
+            "turnCountdown"
+        ).innerText =
+            "10s";
+
+        startTurn();
+
+    }catch(err){
+
+        alert(
+            "Could not access microphone."
+        );
+    }
+});
+
+function getCurrentTurnLimit(){
+    return turnCap * currentTurn;
+}
+
+function startTurn(){
+    turnRunning = true;
+
+    const started =
+        Date.now();
+
+    turnTimer =
+        setInterval(() => {
+
+            const elapsed =
+                Date.now() - started;
+
+            const remaining =
+                Math.max(
+                    0,
+                    turnDurationMs - elapsed
+                );
+
+            document.getElementById(
+                "turnCountdown"
+            ).innerText =
+                Math.ceil(
+                    remaining / 1000
+                ) + "s";
+
+            if(
+                remaining <= 0
+            ){
+
+                clearInterval(
+                    turnTimer
+                );
+
+                endTurn();
+            }
+
+        },100);
+
+    startRecognition();
+}
+
+function endTurn(){
+    turnRunning = false;
+
+    clearTimeout(turnTimer);
 
     boostActive = false;
 
-    clearTimeout(
-        boostTimeout
-    );
+    clearTimeout(boostTimeout);
+    clearInterval(boostInterval);
 
-    clearInterval(
-        boostInterval
-    );
-
-    boostIndicator.style.opacity =
-        "0";
-
+    boostIndicator.style.opacity = "0";
     boostTimer.innerText = "";
 
     boostIndicator.classList.remove(
         "boost-active"
     );
 
-    meterFill.style.height =
-        "0%";
-
-    percentageText.innerText =
-        "0%";
-
-    lastPhrase.innerText =
-        "Waiting...";
-
-    startBtn.disabled = true;
-
-    startBtn.innerText =
-        "🎤 Listening...";
-
-    startRecognition();
-}
-
-// ========================================
-// Start
-// ========================================
-
-startBtn.addEventListener(
-    "click",
-    async () => {
-
-        if(gameFinished){
-
-            restartGame();
-
-            return;
-        }
+    if(recognition){
 
         try{
 
-            const stream =
-                await navigator
-                    .mediaDevices
-                    .getUserMedia({
-                        audio:true
-                    });
+            recognition.onend = null;
 
-            stream.getTracks()
-                .forEach(track =>
-                    track.stop()
-                );
+            recognition.stop();
 
-            await startVolumeMonitor();
-
-            startRecognition();
-
-            startBtn.disabled = true;
-
-            startBtn.innerText =
-                "🎤 Listening...";
-
-        }catch(err){
-
-            console.error(err);
-
-            alert(
-                "Could not access microphone."
-            );
-        }
+        }catch(e){}
     }
-);
 
+    if(currentTurn < totalTurns){
+
+        currentTurn++;
+
+        document.getElementById(
+            "turnInfo"
+        ).innerText =
+            `Turn ${currentTurn} / ${totalTurns}`;
+
+        startBtn.disabled = false;
+
+        startBtn.innerText =
+            `🎤 Start Turn ${currentTurn}`;
+
+    }else{
+
+        startBtn.disabled = false;
+
+        startBtn.innerText =
+            "🎤 Final Turn Complete";
+    }
+}
 </script>
-
 </body>
 </html>

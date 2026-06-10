@@ -74,6 +74,8 @@ let boostActive=false;
 let boostTimeout=null;
 let boostInterval=null;
 let fireworksInterval=null;
+let recentVolumes = [];
+let simulatedVolume = 0.5;
 
 function updateMeter(amount){
     if(gameFinished) return;

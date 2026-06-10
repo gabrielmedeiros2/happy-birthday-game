@@ -157,11 +157,20 @@ async function startVolumeMonitor(){
 
 function calculateGain(){
     const baseValue = 100;
-    const volume=Math.max(0,currentVolume-0.02);
-    let points=baseValue+Math.pow(volume*20,2);
+    const avgConfidence =
+        recentVolumes.length
+            ? recentVolumes.reduce(
+                (a,b) => a + b,
+                0
+              ) / recentVolumes.length
+            : 0.5;
+
+    let points =
+        baseValue +
+        (avgConfidence * 300);
 
     if(boostActive){
-        points*=2;
+        points *= 2;
     }
 
     return points;
@@ -256,6 +265,18 @@ function startRecognition(){
 
         const normalized=transcript.replace(/[^\w\s]/g,"").replace(/\s+/g," ").trim();
 
+        const confidence =
+            event.results[event.results.length - 1][0]
+                .confidence || 0.5;
+
+        simulatedVolume = confidence;
+
+        recentVolumes.push(confidence);
+
+        if(recentVolumes.length > 20){
+            recentVolumes.shift();
+        }
+
         if(normalized.includes("i love you")){
             activateBoost();
             return;
@@ -278,7 +299,6 @@ function startRecognition(){
 }
 
 startBtn.addEventListener("click", async ()=>{
-    updateMeter(calculateGain());
     if(turnRunning){
         return;
     }
@@ -295,7 +315,7 @@ startBtn.addEventListener("click", async ()=>{
                 track.stop()
             );
 
-        startVolumeMonitor();
+        startRecognition();
 
         startBtn.disabled = true;
 
@@ -366,6 +386,7 @@ function endTurn(){
     turnRunning = false;
 
     clearTimeout(turnTimer);
+    clearInterval(turnTimer);
 
     boostActive = false;
 

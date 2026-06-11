@@ -30,7 +30,7 @@
     </div>
 
     <div id="turnCountdown">
-        10s
+        30s
     </div>
 
     <div id="boostIndicator">🚀 2X BOOST</div>
@@ -82,7 +82,7 @@ const containerVictory=document.getElementById("container-victory");
 
 const meterMax = 8000;
 const totalTurns = 8;
-const turnDurationMs = 10000;
+const turnDurationMs = 30000;
 const turnCap = meterMax / totalTurns;
 const names = ["Coleen", "Leda", "Macmac", "Therese", "Minnie", "Arvin", "Carlou", "Joseph"];
 
@@ -144,10 +144,10 @@ function activateBoost(){
 
     boostInterval=setInterval(()=>{
         const elapsed=Date.now()-startTime;
-        const remaining=Math.max(0,30000-elapsed);
+        const remaining=Math.max(0,15000-elapsed);
 
 
-        const progress=remaining/30000;
+        const progress=remaining/15000;
         boostIndicator.style.fontSize=(1+(2*progress))+"rem";
     },100);
 
@@ -156,7 +156,7 @@ function activateBoost(){
         boostIndicator.style.opacity="0";
         boostIndicator.classList.remove("boost-active");
         clearInterval(boostInterval);
-    },30000);
+    },15000);
 }
 
 async function startVolumeMonitor(){
@@ -361,7 +361,7 @@ startBtn.addEventListener("click", async ()=>{
         document.getElementById(
             "turnCountdown"
         ).innerText =
-            "10s";
+            "30s";
 
         startTurn();
 

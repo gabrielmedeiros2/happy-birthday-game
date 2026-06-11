@@ -12,14 +12,21 @@
 
     <h1>🎂 Happy Birthday! 🎉</h1>
 
-    <div class="meter-container">
-        <div id="meter-fill"></div>
+    <div class="meter-wrapper">
+        <div class="meter-label" id="meter-total">&#8369; 8,000</div>
+        <div class="meter-area">
+            <div class="meter-container">
+                <div id="meter-fill"></div>
+            </div>
+            <div class="meter-tracker" id="meter-tracker">
+                <div class="tracker-line"></div>
+                <div class="tracker-amount" id="percentage">&#8369; 0</div>
+            </div>
+        </div>
     </div>
 
-    <div class="percentage" id="percentage">0&#8369;</div>
-
     <div id="turnInfo">
-        Turn 1 / 8
+        Coleen's turn
     </div>
 
     <div id="turnCountdown">
@@ -31,6 +38,11 @@
 
     <button id="startBtn">🎤 Start Listening</button>
 
+    <!-- TEST BUTTON - Remove this block when done testing -->
+    <button id="testBtn" style="margin-top:6px;background:#9c27b0;">🧪 Test +1000</button>
+    <button id="testBoostBtn" style="margin-top:6px;background:#9c27b0;">🧪 Test Boost</button>
+    <!-- END TEST BUTTON -->
+
     <div class="status">
         <p class="text-phrase"><strong>Last phrase:</strong></p>
         <div id="lastPhrase">Waiting...</div>
@@ -41,14 +53,30 @@
 <div id="container-victory" class="container invisible">
     <div id="victoryMessage">
         <span>🎉 Congratulations, You Won! 🎉</span><br/>
-        <span style="font-size: 1rem;">You children love you so much that gift increased to <strong>10,000&#8369;</strong></span>
+        <span>You children love you so much that the gift is now</span><br/>
+        <strong class="victory-amount">10,000&#8369;</strong>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<!-- CELEBRATION AUDIO - Remove this block when done testing -->
+<audio id="sndPop" preload="auto">
+    <source src="https://raw.githubusercontent.com/Aurosish07/BirthDayCake/master/balloonpop-83760.mp3" type="audio/mpeg">
+</audio>
+<audio id="sndApplause" preload="auto">
+    <source src="https://raw.githubusercontent.com/Sirsha2468/Dev-Geeks/main/Js-Projects/Sound%20Board/sounds/applause.mp3" type="audio/mpeg">
+</audio>
+<audio id="sndCheer" preload="auto">
+    <source src="https://raw.githubusercontent.com/Aurosish07/BirthDayCake/master/song.mp3" type="audio/mpeg">
+</audio>
+<audio id="sndSuspense" loop preload="auto">
+    <source src="https://raw.githubusercontent.com/code4fukui/drumroll/main/569113__missloonervoiceover255__long-snare-drum-roll-with-cymbal-crash.mp3" type="audio/mpeg">
+</audio>
+<!-- END CELEBRATION AUDIO -->
 <script>
 const meterFill=document.getElementById("meter-fill");
 const percentageText=document.getElementById("percentage");
+const meterTracker=document.getElementById("meter-tracker");
 const lastPhrase=document.getElementById("lastPhrase");
 const startBtn=document.getElementById("startBtn");
 const boostIndicator=document.getElementById("boostIndicator");
@@ -61,6 +89,7 @@ const meterMax = 8000;
 const totalTurns = 8;
 const turnDurationMs = 10000;
 const turnCap = meterMax / totalTurns;
+const names = ["Coleen", "Leda", "Macmac", "Therese", "Minnie", "Arvin", "Carlou", "Joseph"];
 
 let currentTurn = 1;
 let turnTimer = null;
@@ -77,6 +106,10 @@ let fireworksInterval=null;
 let recentVolumes = [];
 let simulatedVolume = 0.5;
 
+function formatAmount(val){
+    return Math.round(val).toLocaleString("en-US");
+}
+
 function updateMeter(amount){
     if(gameFinished) return;
     const turnLimit = getCurrentTurnLimit();
@@ -89,11 +122,18 @@ function updateMeter(amount){
 
     if(meterValue>=meterMax){
         meterValue=meterMax;
-        triggerVictory();
+        const pct = (meterValue * 100)/meterMax;
+        meterFill.style.height=pct+"%";
+        meterTracker.style.bottom=pct+"%";
+        percentageText.innerText="\u20B1 " + formatAmount(meterValue);
+        setTimeout(triggerVictory, 500);
+        return;
     }
 
-    meterFill.style.height=(meterValue * 100)/meterMax+"%";
-    percentageText.innerText=Math.round(meterValue)+"\u20B1";
+    const pct = (meterValue * 100)/meterMax;
+    meterFill.style.height=pct+"%";
+    meterTracker.style.bottom=pct+"%";
+    percentageText.innerText="\u20B1 " + formatAmount(meterValue);
 }
 
 function activateBoost(){
@@ -110,7 +150,7 @@ function activateBoost(){
     boostInterval=setInterval(()=>{
         const elapsed=Date.now()-startTime;
         const remaining=Math.max(0,30000-elapsed);
-        boostTimer.innerText=Math.ceil(remaining/1000)+"s";
+
 
         const progress=remaining/30000;
         boostIndicator.style.fontSize=(1+(2*progress))+"rem";
@@ -119,7 +159,6 @@ function activateBoost(){
     boostTimeout=setTimeout(()=>{
         boostActive=false;
         boostIndicator.style.opacity="0";
-        boostTimer.innerText="";
         boostIndicator.classList.remove("boost-active");
         clearInterval(boostInterval);
     },30000);
@@ -196,8 +235,8 @@ function startFireworks(){
                 spread: 120,
 
                 origin: {
-                    x: Math.random(),
-                    y: Math.random() * .6
+                    x: 0.5,
+                    y: 0.5
                 }
             });
 
@@ -371,6 +410,9 @@ function startTurn(){
             if(
                 remaining <= 0
             ){
+                document.getElementById(
+                    "turnCountdown"
+                ).innerText = "0s";
 
                 clearInterval(
                     turnTimer
@@ -386,6 +428,8 @@ function startTurn(){
 
 function endTurn(){
     turnRunning = false;
+
+    document.getElementById("turnCountdown").innerText = "0s";
 
     clearTimeout(turnTimer);
     clearInterval(turnTimer);
@@ -420,12 +464,12 @@ function endTurn(){
         document.getElementById(
             "turnInfo"
         ).innerText =
-            `Turn ${currentTurn} / ${totalTurns}`;
+            `${names[currentTurn - 1]}'s turn`;
 
         startBtn.disabled = false;
 
         startBtn.innerText =
-            `🎤 Start Turn ${currentTurn}`;
+            `🎤 Start ${names[currentTurn - 1]}'s turn`;
 
     }else{
 
@@ -435,6 +479,52 @@ function endTurn(){
             "🎤 Final Turn Complete";
     }
 }
+
+/* TEST BUTTON - Remove this block when done testing */
+document.getElementById("testBtn").addEventListener("click", function(){
+    if(gameFinished) return;
+    if(!turnRunning){
+        turnRunning = true;
+        document.getElementById("turnCountdown").innerText = "10s";
+    }
+    updateMeter(1000);
+});
+
+document.getElementById("testBoostBtn").addEventListener("click", function(){
+    if(gameFinished) return;
+    activateBoost();
+});
+/* END TEST BUTTON */
+
+/* CELEBRATION AUDIO - Remove this block when done testing */
+function playCelebration(){
+    var suspense = document.getElementById("sndSuspense");
+    suspense.pause();
+    suspense.currentTime = 0;
+    var pop = document.getElementById("sndPop");
+    var applause = document.getElementById("sndApplause");
+    var cheer = document.getElementById("sndCheer");
+    pop.currentTime = 0; pop.play();
+    setTimeout(function(){ applause.currentTime = 0; applause.play(); }, 200);
+    setTimeout(function(){ cheer.currentTime = 0; cheer.play(); }, 400);
+}
+
+const _origStartFireworks = startFireworks;
+startFireworks = function(){
+    _origStartFireworks();
+    playCelebration();
+};
+
+const _origEndTurn = endTurn;
+endTurn = function(){
+    _origEndTurn();
+    if(currentTurn >= 7 && !gameFinished){
+        var suspense = document.getElementById("sndSuspense");
+        suspense.currentTime = 0;
+        suspense.play();
+    }
+};
+/* END CELEBRATION AUDIO */
 </script>
 </body>
 </html>

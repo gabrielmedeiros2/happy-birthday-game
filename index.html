@@ -38,11 +38,6 @@
 
     <button id="startBtn">🎤 Start Listening</button>
 
-    <!-- TEST BUTTON - Remove this block when done testing -->
-    <button id="testBtn" style="margin-top:6px;background:#9c27b0;">🧪 Test +1000</button>
-    <button id="testBoostBtn" style="margin-top:6px;background:#9c27b0;">🧪 Test Boost</button>
-    <!-- END TEST BUTTON -->
-
     <div class="status">
         <p class="text-phrase"><strong>Last phrase:</strong></p>
         <div id="lastPhrase">Waiting...</div>
@@ -480,21 +475,7 @@ function endTurn(){
     }
 }
 
-/* TEST BUTTON - Remove this block when done testing */
-document.getElementById("testBtn").addEventListener("click", function(){
-    if(gameFinished) return;
-    if(!turnRunning){
-        turnRunning = true;
-        document.getElementById("turnCountdown").innerText = "10s";
-    }
-    updateMeter(1000);
-});
 
-document.getElementById("testBoostBtn").addEventListener("click", function(){
-    if(gameFinished) return;
-    activateBoost();
-});
-/* END TEST BUTTON */
 
 /* CELEBRATION AUDIO - Remove this block when done testing */
 function playCelebration(){

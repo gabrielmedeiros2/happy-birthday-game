@@ -48,10 +48,21 @@
 <div id="container-victory" class="container invisible">
     <div id="victoryMessage">
         <span>Happy Birthday!</span><br/>
-        <span>You won</span><br/>
-        <strong class="victory-amount">&#8369;20,000</strong>
+        <span id="victoryVerb">You won</span><br/>
+        <strong class="victory-amount" id="victoryAmount">&#8369;20,000</strong>
     </div>
 </div>
+
+<div id="gameOverOverlay" class="game-over-overlay invisible">
+    <div class="game-over-content">
+        <div class="game-over-title">Game Over</div>
+        <div class="game-over-amount" id="gameOverAmount">You won ₱0</div>
+        <div class="game-over-sub">Click below to claim your birthday gift</div>
+        <button id="claimBtn" class="claim-btn">Claim</button>
+    </div>
+</div>
+
+<button id="testGameOverBtn" class="test-btn">⚡ Test Game Over</button>
 
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <!-- CELEBRATION AUDIO - Remove this block when done testing -->
@@ -67,6 +78,9 @@
 <audio id="sndSuspense" loop preload="auto">
     <source src="https://raw.githubusercontent.com/code4fukui/drumroll/main/569113__missloonervoiceover255__long-snare-drum-roll-with-cymbal-crash.mp3" type="audio/mpeg">
 </audio>
+<audio id="sndCountdown" preload="auto">
+    <source src="countdown.mp3" type="audio/mpeg">
+</audio>
 <!-- END CELEBRATION AUDIO -->
 <script>
 const meterFill=document.getElementById("meter-fill");
@@ -79,6 +93,12 @@ const boostTimer=document.getElementById("boostTimer");
 const volumeDebug=document.getElementById("volumeDebug");
 const containerGame=document.getElementById("container-game");
 const containerVictory=document.getElementById("container-victory");
+const gameOverOverlay=document.getElementById("gameOverOverlay");
+const gameOverAmount=document.getElementById("gameOverAmount");
+const victoryVerb=document.getElementById("victoryVerb");
+const victoryAmountEl=document.getElementById("victoryAmount");
+const claimBtn=document.getElementById("claimBtn");
+const testGameOverBtn=document.getElementById("testGameOverBtn");
 
 const meterMax = 8000;
 const totalTurns = 8;
@@ -100,6 +120,7 @@ let boostInterval=null;
 let fireworksInterval=null;
 let recentVolumes = [];
 let simulatedVolume = 0.5;
+let fromGameOver = false;
 
 function formatAmount(val){
     return Math.round(val).toLocaleString("en-US");
@@ -205,10 +226,6 @@ function calculateGain(){
         baseValue +
         (avgConfidence * 300);
 
-    if(boostActive){
-        points *= 2;
-    }
-
     return points;
 }
 
@@ -249,6 +266,10 @@ function startFireworks(){
 function triggerVictory(){
     gameFinished=true;
 
+    var cd = document.getElementById("sndCountdown");
+    cd.pause();
+    cd.currentTime = 0;
+
     boostActive=false;
     clearTimeout(boostTimeout);
     clearInterval(boostInterval);
@@ -265,6 +286,12 @@ function triggerVictory(){
     }
 
     startBtn.style.display="none";
+
+    if(fromGameOver){
+        victoryVerb.innerText="You will receive";
+    }else{
+        victoryVerb.innerText="You won";
+    }
 
     containerGame.classList.add("invisible");
     containerVictory.classList.remove("invisible");
@@ -314,6 +341,7 @@ function startRecognition(){
         }
 
         if(normalized.includes("i love you")){
+            updateMeter(calculateGain() * 1.5);
             activateBoost();
             return;
         }
@@ -380,6 +408,10 @@ function getCurrentTurnLimit(){
 function startTurn(){
     turnRunning = true;
 
+    var cd = document.getElementById("sndCountdown");
+    cd.pause();
+    cd.currentTime = 0;
+
     const started =
         Date.now();
 
@@ -401,6 +433,12 @@ function startTurn(){
                 "turnCountdown"
             ).innerText =
                 secsLeft + "s";
+
+            if(secsLeft <= 3 && cd.paused){
+                cd.currentTime = 0;
+                cd.volume = 1.0;
+                cd.play();
+            }
 
             if(
                 remaining <= 0
@@ -468,13 +506,65 @@ function endTurn(){
 
     }else{
 
-        startBtn.disabled = false;
-
-        startBtn.innerText =
-            "🎤 Final Turn Complete";
+        if(meterValue < meterMax){
+            startBtn.disabled = true;
+            startBtn.innerText = "🎤 Game Over";
+            showGameOver();
+        }else{
+            startBtn.disabled = false;
+            startBtn.innerText = "🎤 Final Turn Complete";
+        }
     }
 }
 
+function showGameOver(){
+    gameOverAmount.innerText = "You won \u20B1" + formatAmount(meterValue);
+    var suspense = document.getElementById("sndSuspense");
+    suspense.pause();
+    suspense.currentTime = 0;
+    gameOverOverlay.classList.remove("invisible");
+}
+
+claimBtn.addEventListener("click", function(){
+    gameOverOverlay.classList.add("invisible");
+    var suspense = document.getElementById("sndSuspense");
+    suspense.pause();
+    suspense.currentTime = 0;
+    fromGameOver = true;
+    triggerVictory();
+});
+
+testGameOverBtn.addEventListener("click", function(){
+    if(turnRunning){
+        try{
+            recognition.onend = null;
+            recognition.stop();
+        }catch(e){}
+        turnRunning = false;
+        clearInterval(turnTimer);
+    }
+    boostActive = false;
+    clearTimeout(boostTimeout);
+    clearInterval(boostInterval);
+    meterValue = 3500;
+    currentTurn = 8;
+    document.getElementById("turnInfo").innerText = names[currentTurn - 1] + "'s turn";
+    const pct = (meterValue * 100) / meterMax;
+    meterFill.style.height = pct + "%";
+    meterTracker.style.bottom = pct + "%";
+    percentageText.innerText = "\u20B1 " + formatAmount(meterValue);
+    containerGame.classList.remove("invisible");
+    containerVictory.classList.add("invisible");
+    document.getElementById("victoryMessage").classList.remove("victory-visible");
+    gameFinished = false;
+    startBtn.style.display = "";
+    startBtn.disabled = false;
+    startBtn.innerText = "\uD83C\uDFA4 Start " + names[currentTurn - 1] + "'s turn";
+    endTurn();
+    var s = document.getElementById("sndSuspense");
+    s.pause();
+    s.currentTime = 0;
+});
 
 
 /* CELEBRATION AUDIO - Remove this block when done testing */

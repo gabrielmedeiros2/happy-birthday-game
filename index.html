@@ -62,8 +62,6 @@
     </div>
 </div>
 
-<button id="testGameOverBtn" class="test-btn">⚡ Test Game Over</button>
-
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <!-- CELEBRATION AUDIO - Remove this block when done testing -->
 <audio id="sndPop" preload="auto">
@@ -98,7 +96,6 @@ const gameOverAmount=document.getElementById("gameOverAmount");
 const victoryVerb=document.getElementById("victoryVerb");
 const victoryAmountEl=document.getElementById("victoryAmount");
 const claimBtn=document.getElementById("claimBtn");
-const testGameOverBtn=document.getElementById("testGameOverBtn");
 
 const meterMax = 8000;
 const totalTurns = 8;
@@ -533,39 +530,6 @@ claimBtn.addEventListener("click", function(){
     fromGameOver = true;
     triggerVictory();
 });
-
-testGameOverBtn.addEventListener("click", function(){
-    if(turnRunning){
-        try{
-            recognition.onend = null;
-            recognition.stop();
-        }catch(e){}
-        turnRunning = false;
-        clearInterval(turnTimer);
-    }
-    boostActive = false;
-    clearTimeout(boostTimeout);
-    clearInterval(boostInterval);
-    meterValue = 3500;
-    currentTurn = 8;
-    document.getElementById("turnInfo").innerText = names[currentTurn - 1] + "'s turn";
-    const pct = (meterValue * 100) / meterMax;
-    meterFill.style.height = pct + "%";
-    meterTracker.style.bottom = pct + "%";
-    percentageText.innerText = "\u20B1 " + formatAmount(meterValue);
-    containerGame.classList.remove("invisible");
-    containerVictory.classList.add("invisible");
-    document.getElementById("victoryMessage").classList.remove("victory-visible");
-    gameFinished = false;
-    startBtn.style.display = "";
-    startBtn.disabled = false;
-    startBtn.innerText = "\uD83C\uDFA4 Start " + names[currentTurn - 1] + "'s turn";
-    endTurn();
-    var s = document.getElementById("sndSuspense");
-    s.pause();
-    s.currentTime = 0;
-});
-
 
 /* CELEBRATION AUDIO - Remove this block when done testing */
 function playCelebration(){

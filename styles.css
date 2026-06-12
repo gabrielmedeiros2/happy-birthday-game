@@ -449,27 +449,6 @@ button {
     box-shadow: 0 2px 8px rgba(255, 64, 129, 0.3);
 }
 
-.test-btn {
-    position: fixed;
-    bottom: 12px;
-    right: 12px;
-    padding: 8px 14px;
-    border: 2px solid #ff9800;
-    border-radius: 8px;
-    background: #fff3e0;
-    color: #e65100;
-    font-size: 0.75rem;
-    font-weight: bold;
-    cursor: pointer;
-    z-index: 999;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-.test-btn:hover {
-    opacity: 1;
-}
-
 .invisible {
     display: none;
 }
